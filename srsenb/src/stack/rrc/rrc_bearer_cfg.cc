@@ -114,6 +114,8 @@ bool security_cfg_handler::set_security_capabilities(const asn1::s1ap::ue_securi
       case srsran::INTEGRITY_ALGORITHM_ID_EIA0:
         // Null integrity is not supported
         logger.info("Skipping EIA0 as RRC integrity algorithm. Null integrity is not supported.");
+        sec_cfg.integ_algo = srsran::INTEGRITY_ALGORITHM_ID_EIA0;
+        integ_algo_found   = true;
         break;
       case srsran::INTEGRITY_ALGORITHM_ID_128_EIA1:
         // “first bit” – 128-EIA1,
@@ -211,6 +213,14 @@ bearer_cfg_handler::bearer_cfg_handler(uint16_t rnti_, const rrc_cfg_t& cfg_, gt
   rnti(rnti_), cfg(&cfg_), gtpu(gtpu_), logger(&srslog::fetch_basic_logger("RRC"))
 {}
 
+void bearer_cfg_handler::reestablish_bearers(bearer_cfg_handler&& old_rnti_bearers)
+{
+  erab_info_list = std::move(old_rnti_bearers.erab_info_list);
+  erabs          = std::move(old_rnti_bearers.erabs);
+  current_drbs   = std::move(old_rnti_bearers.current_drbs);
+  old_rnti_bearers.current_drbs.clear();
+}
+
 int bearer_cfg_handler::add_erab(uint8_t                                            erab_id,
                                  const asn1::s1ap::erab_level_qos_params_s&         qos,
                                  const asn1::bounded_bitstring<1, 160, true, true>& addr,
@@ -223,8 +233,30 @@ int bearer_cfg_handler::add_erab(uint8_t                                        
     cause.set_radio_network().value = asn1::s1ap::cause_radio_network_opts::unknown_erab_id;
     return SRSRAN_ERROR;
   }
-  uint8_t lcid  = erab_id - 2; // Map e.g. E-RAB 5 to LCID 3 (==DRB1)
-  uint8_t drbid = erab_id - 4;
+
+  uint8_t lcid = 3; // first E-RAB with DRB1 gets LCID3
+  for (const auto& drb : current_drbs) {
+    if (drb.lc_ch_id == lcid) {
+      lcid++;
+    }
+  }
+  if (lcid > srsenb::sched_interface::MAX_LC) {
+    logger->error("Can't allocate LCID for ERAB id=%d", erab_id);
+    cause.set_radio_network().value = asn1::s1ap::cause_radio_network_opts::radio_res_not_available;
+    return SRSRAN_ERROR;
+  }
+
+  uint8_t drbid = lcid - 2; // first E-RAB will be DRB1 on LCID3
+  for (const auto& drb : current_drbs) {
+    if (drb.drb_id == drbid) {
+      drbid++;
+    }
+  }
+  if (drbid > srsran::MAX_LTE_DRB_ID) {
+    logger->error("Can't allocate DRB ID for ERAB id=%d", erab_id);
+    cause.set_radio_network().value = asn1::s1ap::cause_radio_network_opts::radio_res_not_available;
+    return SRSRAN_ERROR;
+  }
 
   auto qci_it = cfg->qci_cfg.find(qos.qci);
   if (qci_it == cfg->qci_cfg.end() or not qci_it->second.configured) {
@@ -311,6 +343,8 @@ int bearer_cfg_handler::release_erab(uint8_t erab_id)
 
   srsran::rem_rrc_obj_id(current_drbs, drb_id);
 
+  rem_gtpu_bearer(erab_id);
+
   erabs.erase(it);
   erab_info_list.erase(erab_id);
 
@@ -319,8 +353,6 @@ int bearer_cfg_handler::release_erab(uint8_t erab_id)
 
 void bearer_cfg_handler::release_erabs()
 {
-  // TODO: notify GTPU layer for each ERAB
-  erabs.clear();
   while (not erabs.empty()) {
     release_erab(erabs.begin()->first);
   }
@@ -387,13 +419,7 @@ srsran::expected<uint32_t> bearer_cfg_handler::add_gtpu_bearer(uint32_t         
 
 void bearer_cfg_handler::rem_gtpu_bearer(uint32_t erab_id)
 {
-  auto it = erabs.find(erab_id);
-  if (it != erabs.end()) {
-    // Map e.g. E-RAB 5 to LCID 3 (==DRB1)
-    gtpu->rem_bearer(rnti, erab_id - 2);
-  } else {
-    logger->error("Removing erab_id=%d to GTPU\n", erab_id);
-  }
+  gtpu->rem_bearer(rnti, erab_id - 2);
 }
 
 void bearer_cfg_handler::fill_pending_nas_info(asn1::rrc::rrc_conn_recfg_r8_ies_s* msg)
