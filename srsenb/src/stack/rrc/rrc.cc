@@ -51,11 +51,24 @@ int32_t rrc::init(const rrc_cfg_t&       cfg_,
                   s1ap_interface_rrc*    s1ap_,
                   gtpu_interface_rrc*    gtpu_)
 {
+  return init(cfg_, phy_, mac_, rlc_, pdcp_, s1ap_, gtpu_, 0);
+}
+
+int32_t rrc::init(const rrc_cfg_t&       cfg_,
+                  phy_interface_rrc_lte* phy_,
+                  mac_interface_rrc*     mac_,
+                  rlc_interface_rrc*     rlc_,
+                  pdcp_interface_rrc*    pdcp_,
+                  s1ap_interface_rrc*    s1ap_,
+                  gtpu_interface_rrc*    gtpu_,
+                  agent_interface_rrc*   agent_)
+{
   phy  = phy_;
   mac  = mac_;
   rlc  = rlc_;
   pdcp = pdcp_;
   gtpu = gtpu_;
+  agent = agent_;
   s1ap = s1ap_;
 
   cfg = cfg_;
@@ -270,6 +283,29 @@ void rrc::send_rrc_connection_reject(uint16_t rnti)
   sprintf(buf, "SRB0 - rnti=0x%x", rnti);
   log_rrc_message(buf, Tx, pdu.get(), dl_ccch_msg, dl_ccch_msg.msg.c1().type().to_string());
   rlc->write_sdu(rnti, srb_to_lcid(lte_srb::srb0), std::move(pdu));
+}
+
+/*******************************************************************************
+  Stack interface
+*******************************************************************************/
+void rrc::rrc_meas_config_add(uint16_t rnti, uint8_t id, uint16_t pci, uint32_t carrier_freq, asn1::rrc::report_cfg_eutra_s::report_amount_e_ amount, asn1::rrc::report_interv_e interval)
+{
+  auto it = users.find(rnti);
+  if (it == users.end()) {
+    logger.error("Unable to find RNTI %u", rnti);
+    return;
+  }
+  it->second->send_connection_reconf_add_meas(id, pci, carrier_freq, amount, interval);
+}
+
+void rrc::rrc_meas_config_rem(uint16_t rnti, uint8_t id)
+{
+  auto it = users.find(rnti);
+  if (it == users.end()) {
+    logger.error("Unable to find RNTI %u", rnti);
+    return;
+  }
+  it->second->send_connection_reconf_rem_meas(id);
 }
 
 /*******************************************************************************
@@ -700,6 +736,9 @@ void rrc::rem_user(uint16_t rnti)
     // Now remove RLC and PDCP
     rlc->rem_user(rnti);
     pdcp->rem_user(rnti);
+
+    // Remove user from agent
+    agent->rem_user(rnti);
 
     users.erase(rnti);
     logger.info("Removed user rnti=0x%x", rnti);

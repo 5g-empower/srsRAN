@@ -30,6 +30,7 @@
 #include "mac/mac.h"
 #include "rrc/rrc.h"
 #include "srsran/common/task_scheduler.h"
+#include "srsenb/hdr/agent.h"
 #include "upper/gtpu.h"
 #include "upper/pdcp.h"
 #include "upper/rlc.h"
@@ -38,18 +39,19 @@
 #include "enb_stack_base.h"
 #include "srsran/common/mac_pcap_net.h"
 #include "srsran/interfaces/enb_interfaces.h"
+#include "srsran/interfaces/enb_agent_interfaces.h"
 #include "srsran/srslog/srslog.h"
 
 namespace srsenb {
 
-class enb_stack_lte final : public enb_stack_base, public stack_interface_phy_lte, public srsran::thread
+class enb_stack_lte final : public enb_stack_base, public stack_interface_phy_lte, public stack_interface_agent, public srsran::thread
 {
 public:
   enb_stack_lte(srslog::sink& log_sink);
   ~enb_stack_lte() final;
 
   // eNB stack base interface
-  int         init(const stack_args_t& args_, const rrc_cfg_t& rrc_cfg_, phy_interface_stack_lte* phy_);
+  int         init(const stack_args_t& args_, Empower::Agent::agent *agent, const rrc_cfg_t& rrc_cfg_, phy_interface_stack_lte* phy_);
   int         init(const stack_args_t& args_, const rrc_cfg_t& rrc_cfg_);
   void        stop() final;
   std::string get_type() final;
@@ -102,6 +104,10 @@ public:
   }
   void tti_clock() override;
 
+  /* Stack-Agent interface */
+  void rrc_meas_config_add(uint16_t rnti, uint8_t id, uint16_t pci, uint32_t carrier_freq, asn1::rrc::report_cfg_eutra_s::report_amount_e_ amount, asn1::rrc::report_interv_e interval) override;
+  void rrc_meas_config_rem(uint16_t rnti, uint8_t id) override;
+
 private:
   static const int STACK_MAIN_THREAD_PRIO = 4;
   // thread loop
@@ -138,6 +144,8 @@ private:
   srsenb::rrc  rrc;
   srsenb::gtpu gtpu;
   srsenb::s1ap s1ap;
+
+  Empower::Agent::agent *agent;
 
   // RAT-specific interfaces
   phy_interface_stack_lte* phy = nullptr;

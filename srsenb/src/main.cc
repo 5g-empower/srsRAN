@@ -250,6 +250,11 @@ void parse_args(all_args_t* args, int argc, char* argv[])
     ("coreless.ip_netmask", bpo::value<string>(&args->stack.coreless.gw_args.tun_dev_netmask)->default_value("255.255.255.0"), "Netmask of the TUN device")
     ("coreless.drb_lcid", bpo::value<uint8_t>(&args->stack.coreless.drb_lcid)->default_value(4), "LCID of the dummy DRB")
     ("coreless.rnti", bpo::value<uint16_t >(&args->stack.coreless.rnti)->default_value(1234), "RNTI of the dummy user")
+
+    // EmPOWER Agent section
+    ("agent.address", bpo::value<string>(&args->agent.address)->default_value("127.0.0.1"), "IP address of the EmPOWER controller.")
+    ("agent.port", bpo::value<uint16_t>(&args->agent.port)->default_value(5533), "TCP port of the EmPOWER controller.")
+    ("agent.delay", bpo::value<uint32_t>(&args->agent.delay)->default_value(2000), "Default delay ")
     ;
 
   // Positional options - config file location

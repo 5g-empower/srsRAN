@@ -53,7 +53,8 @@ bool mac::init(const mac_args_t&        args_,
                const cell_list_t&       cells_,
                phy_interface_stack_lte* phy,
                rlc_interface_mac*       rlc,
-               rrc_interface_mac*       rrc)
+               rrc_interface_mac*       rrc,
+               agent_interface_mac*     agent_)
 {
   started = false;
 
@@ -63,13 +64,14 @@ bool mac::init(const mac_args_t&        args_,
   phy_h = phy;
   rlc_h = rlc;
   rrc_h = rrc;
+  agent = agent_;
 
   args  = args_;
   cells = cells_;
 
   stack_task_queue = task_sched.make_task_queue();
 
-  scheduler.init(rrc, args.sched);
+  scheduler.init(rrc, args.sched, agent);
 
   // Init softbuffer for SI messages
   common_buffers.resize(cells.size());

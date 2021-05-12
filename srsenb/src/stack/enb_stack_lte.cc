@@ -66,9 +66,10 @@ std::string enb_stack_lte::get_type()
   return "lte";
 }
 
-int enb_stack_lte::init(const stack_args_t& args_, const rrc_cfg_t& rrc_cfg_, phy_interface_stack_lte* phy_)
+int enb_stack_lte::init(const stack_args_t& args_, Empower::Agent::agent *agent_, const rrc_cfg_t& rrc_cfg_, phy_interface_stack_lte* phy_)
 {
   phy = phy_;
+  agent = agent_;
   if (init(args_, rrc_cfg_)) {
     return SRSRAN_ERROR;
   }
@@ -128,13 +129,13 @@ int enb_stack_lte::init(const stack_args_t& args_, const rrc_cfg_t& rrc_cfg_)
   sync_task_queue = task_sched.make_task_queue(args.sync_queue_size);
 
   // Init all layers
-  if (!mac.init(args.mac, rrc_cfg.cell_list, phy, &rlc, &rrc)) {
+  if (!mac.init(args.mac, rrc_cfg.cell_list, phy, &rlc, &rrc, agent)) {
     stack_logger.error("Couldn't initialize MAC");
     return SRSRAN_ERROR;
   }
   rlc.init(&pdcp, &rrc, &mac, task_sched.get_timer_handler());
   pdcp.init(&rlc, &rrc, &gtpu);
-  if (rrc.init(rrc_cfg, phy, &mac, &rlc, &pdcp, &s1ap, &gtpu) != SRSRAN_SUCCESS) {
+  if (rrc.init(rrc_cfg, phy, &mac, &rlc, &pdcp, &s1ap, &gtpu, agent) != SRSRAN_SUCCESS) {
     stack_logger.error("Couldn't initialize RRC");
     return SRSRAN_ERROR;
   }
@@ -237,6 +238,16 @@ void enb_stack_lte::run_thread()
   while (started) {
     task_sched.run_next_task();
   }
+}
+
+void enb_stack_lte::rrc_meas_config_add(uint16_t rnti, uint8_t id, uint16_t pci, uint32_t carrier_freq, asn1::rrc::report_cfg_eutra_s::report_amount_e_ amount, asn1::rrc::report_interv_e interval)
+{
+  rrc.rrc_meas_config_add(rnti, id, pci, carrier_freq, amount, interval);
+}
+
+void enb_stack_lte::rrc_meas_config_rem(uint16_t rnti, uint8_t id)
+{
+  rrc.rrc_meas_config_rem(rnti, id);
 }
 
 } // namespace srsenb

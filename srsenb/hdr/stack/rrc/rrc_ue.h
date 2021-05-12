@@ -27,6 +27,7 @@
 #include "srsran/adt/pool/batch_mem_pool.h"
 #include "srsran/interfaces/enb_phy_interfaces.h"
 #include "srsran/interfaces/pdcp_interface_types.h"
+#include "srsran/asn1/liblte_mme.h"
 
 namespace srsenb {
 
@@ -74,6 +75,10 @@ public:
     unspecified
   };
 
+  void send_connection_reconf_rem_meas(uint8_t id);
+  void send_connection_reconf_add_meas(uint8_t id, uint16_t pci, uint32_t carrier_freq, asn1::rrc::report_cfg_eutra_s::report_amount_e_ amount, asn1::rrc::report_interv_e interval);
+
+  void send_identity_request();
   void send_connection_setup();
   void send_connection_reest(uint8_t ncc);
   void send_connection_reject(procedure_result_code cause);
@@ -105,6 +110,7 @@ public:
 
   void handle_rrc_con_req(asn1::rrc::rrc_conn_request_s* msg);
   void handle_rrc_con_setup_complete(asn1::rrc::rrc_conn_setup_complete_s* msg, srsran::unique_byte_buffer_t pdu);
+  void handle_ul_info_transfer(asn1::rrc::ul_info_transfer_s* msg, srsran::unique_byte_buffer_t pdu);
   void handle_rrc_con_reest_req(asn1::rrc::rrc_conn_reest_request_s* msg);
   void handle_rrc_con_reest_complete(asn1::rrc::rrc_conn_reest_complete_s* msg, srsran::unique_byte_buffer_t pdu);
   void handle_rrc_reconf_complete(asn1::rrc::rrc_conn_recfg_complete_s* msg, srsran::unique_byte_buffer_t pdu);

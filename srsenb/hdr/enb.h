@@ -32,6 +32,8 @@
 #include <stdarg.h>
 #include <string>
 
+#include "agent.h"
+
 #include "phy/phy.h"
 
 #include "srsran/radio/radio.h"
@@ -106,6 +108,12 @@ struct general_args_t {
   uint32_t    max_mac_ul_kos;
 };
 
+struct agent_args_t {
+  std::string address;
+  uint16_t    port;
+  uint32_t    delay;
+};
+
 struct all_args_t {
   enb_args_t        enb;
   enb_files_t       enb_files;
@@ -115,6 +123,7 @@ struct all_args_t {
   general_args_t    general;
   phy_args_t        phy;
   stack_args_t      stack;
+  agent_args_t      agent;
 };
 
 struct rrc_cfg_t;
@@ -159,6 +168,7 @@ private:
   rrc_cfg_t rrc_cfg = {};
 
   // eNB components
+  std::unique_ptr<Empower::Agent::agent> agent = nullptr;
   std::unique_ptr<enb_stack_base>     stack = nullptr;
   std::unique_ptr<srsran::radio_base> radio = nullptr;
   std::unique_ptr<enb_phy_base>       phy   = nullptr;

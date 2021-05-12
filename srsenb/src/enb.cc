@@ -79,6 +79,12 @@ int enb::init(const all_args_t& args_)
       return SRSRAN_ERROR;
     }
 
+    std::unique_ptr<Empower::Agent::agent> lte_agent = std::unique_ptr<Empower::Agent::agent>(new Empower::Agent::agent(log_sink));
+    if (!lte_agent) {
+      srsran::console("Error creating LTE Agent instance.\n");
+      return SRSRAN_ERROR;
+    }
+
     // Init Radio
     if (lte_radio->init(args.rf, lte_phy.get())) {
       srsran::console("Error initializing radio.\n");
@@ -95,15 +101,26 @@ int enb::init(const all_args_t& args_)
 
     // Only init Stack if both radio and PHY could be initialized
     if (ret == SRSRAN_SUCCESS) {
-      if (lte_stack->init(args.stack, rrc_cfg, lte_phy.get()) != SRSRAN_SUCCESS) {
+      if (lte_stack->init(args.stack, lte_agent.get(), rrc_cfg, lte_phy.get()) != SRSRAN_SUCCESS) {
         srsran::console("Error initializing stack.\n");
         ret = SRSRAN_ERROR;
       }
     }
 
+    if (lte_agent->init(args, rrc_cfg, lte_stack.get())) {
+      srsran::console("Error initializing agent.\n");
+        return SRSRAN_ERROR;
+    }
+
     stack = std::move(lte_stack);
     phy   = std::move(lte_phy);
     radio = std::move(lte_radio);
+    agent = std::move(lte_agent);
+
+    if (agent->start()) {
+      srsran::console("Error starting the agent.\n");
+      return SRSRAN_ERROR;
+    }
 
   } else if (args.stack.type == "nr") {
     std::unique_ptr<srsenb::gnb_stack_nr> nr_stack(new srsenb::gnb_stack_nr);

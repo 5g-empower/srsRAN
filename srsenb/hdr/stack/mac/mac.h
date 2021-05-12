@@ -51,7 +51,8 @@ public:
             const cell_list_t&       cells_,
             phy_interface_stack_lte* phy,
             rlc_interface_mac*       rlc,
-            rrc_interface_mac*       rrc);
+            rrc_interface_mac*       rrc,
+            agent_interface_mac*     agent_);
   void stop();
 
   void start_pcap(srsran::mac_pcap* pcap_);
@@ -129,6 +130,7 @@ private:
   rlc_interface_mac*            rlc_h = nullptr;
   rrc_interface_mac*            rrc_h = nullptr;
   srsran::ext_task_sched_handle task_sched;
+  agent_interface_mac* agent = nullptr;
 
   cell_list_t cells = {};
   mac_args_t  args  = {};

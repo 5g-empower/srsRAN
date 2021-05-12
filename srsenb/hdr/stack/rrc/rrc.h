@@ -34,6 +34,7 @@
 #include "srsran/common/task_scheduler.h"
 #include "srsran/common/timeout.h"
 #include "srsran/interfaces/enb_rrc_interfaces.h"
+#include "srsran/interfaces/enb_agent_interfaces.h"
 #include "srsran/srslog/srslog.h"
 #include <map>
 
@@ -56,7 +57,8 @@ static const char rrc_state_text[RRC_STATE_N_ITEMS][100] = {"IDLE",
 class rrc final : public rrc_interface_pdcp,
                   public rrc_interface_mac,
                   public rrc_interface_rlc,
-                  public rrc_interface_s1ap
+                  public rrc_interface_s1ap,
+                  public rrc_interface_stack
 {
 public:
   explicit rrc(srsran::task_sched_handle task_sched_);
@@ -69,6 +71,15 @@ public:
                pdcp_interface_rrc*    pdcp,
                s1ap_interface_rrc*    s1ap,
                gtpu_interface_rrc*    gtpu);
+
+  int32_t init(const rrc_cfg_t&       cfg_,
+               phy_interface_rrc_lte* phy,
+               mac_interface_rrc*     mac,
+               rlc_interface_rrc*     rlc,
+               pdcp_interface_rrc*    pdcp,
+               s1ap_interface_rrc*    s1ap,
+               gtpu_interface_rrc*    gtpu,
+               agent_interface_rrc*   agent);
 
   void stop();
   void get_metrics(rrc_metrics_t& m);
@@ -121,6 +132,10 @@ public:
 
   int notify_ue_erab_updates(uint16_t rnti, srsran::const_byte_span nas_pdu) override;
 
+  // rrc_interface stack
+  void rrc_meas_config_add(uint16_t rnti, uint8_t id, uint16_t pci, uint32_t carrier_freq, asn1::rrc::report_cfg_eutra_s::report_amount_e_ amount, asn1::rrc::report_interv_e interval) override;
+  void rrc_meas_config_rem(uint16_t rnti, uint8_t id) override;
+
   // rrc_interface_pdcp
   void write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_t pdu) override;
 
@@ -166,6 +181,7 @@ private:
   pdcp_interface_rrc*       pdcp = nullptr;
   gtpu_interface_rrc*       gtpu = nullptr;
   s1ap_interface_rrc*       s1ap = nullptr;
+  agent_interface_rrc* agent = nullptr;
   srslog::basic_logger&     logger;
 
   // derived params
