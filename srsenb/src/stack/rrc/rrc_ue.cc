@@ -310,7 +310,7 @@ void rrc::ue::parse_ul_dcch(uint32_t lcid, srsran::unique_byte_buffer_t pdu)
       handle_rrc_reconf_complete(&ul_dcch_msg.msg.c1().rrc_conn_recfg_complete(), std::move(pdu));
       srsran::console("User 0x%x connected\n", rnti);
       state = RRC_STATE_REGISTERED;
-      send_identity_request();
+      //send_identity_request();
       set_activity_timeout(UE_INACTIVITY_TIMEOUT);
       break;
     case ul_dcch_msg_type_c::c1_c_::types::security_mode_complete:
